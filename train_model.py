@@ -27,5 +27,5 @@ accuracy = accuracy_score(y_test, y_pred)
 # Save model
 joblib.dump(model, "model/student_model.pkl")
 
-print("✅ Model trained successfully")
+print("Model trained successfully")
 print(f"🎯 Model Accuracy: {accuracy * 100:.2f}%")
