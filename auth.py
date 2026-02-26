@@ -1,25 +1,45 @@
 from datetime import datetime, timedelta
-from jose import jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 
-# SECRET
+# =============================
+# JWT CONFIG
+# =============================
+
 SECRET_KEY = "mysecretkey123"
+
 ALGORITHM = "HS256"
+
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# =============================
+# PASSWORD HASH CONFIG
+# =============================
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto"
+)
 
 
-# FIXED hashed password (static)
-fake_user = {
-    "username": "jobayer",
+# =============================
+# HASH PASSWORD
+# =============================
 
-    # password = 1234
-    "password": "$2b$12$C/vZYyBo4hzhapRNtKlM3.aizARsPCUw/ESAJGSFXc7DJIa1NqGsK"
-}
+def hash_password(password: str):
+
+    return pwd_context.hash(password)
 
 
-def verify_password(plain_password, hashed_password):
+# =============================
+# VERIFY PASSWORD
+# =============================
+
+def verify_password(
+    plain_password: str,
+    hashed_password: str
+):
 
     return pwd_context.verify(
         plain_password,
@@ -27,19 +47,9 @@ def verify_password(plain_password, hashed_password):
     )
 
 
-def authenticate_user(username, password):
-
-    if username != fake_user["username"]:
-        return False
-
-    if not verify_password(
-        password,
-        fake_user["password"]
-    ):
-        return False
-
-    return username
-
+# =============================
+# CREATE JWT TOKEN
+# =============================
 
 def create_access_token(data: dict):
 
@@ -58,3 +68,30 @@ def create_access_token(data: dict):
     )
 
     return encoded_jwt
+
+
+# =============================
+# VERIFY TOKEN
+# =============================
+
+def verify_token(token: str):
+
+    try:
+
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        username = payload.get("sub")
+
+        if username is None:
+
+            return None
+
+        return username
+
+    except JWTError:
+
+        return None
