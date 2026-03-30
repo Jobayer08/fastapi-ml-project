@@ -7,9 +7,7 @@ from passlib.context import CryptContext
 # =============================
 
 SECRET_KEY = "mysecretkey123"
-
 ALGORITHM = "HS256"
-
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
@@ -28,6 +26,9 @@ pwd_context = CryptContext(
 # =============================
 
 def hash_password(password: str):
+    # 🔥 bcrypt max length fix
+    if len(password) > 72:
+        raise ValueError("Password must be maximum 72 characters")
 
     return pwd_context.hash(password)
 
@@ -40,7 +41,6 @@ def verify_password(
     plain_password: str,
     hashed_password: str
 ):
-
     return pwd_context.verify(
         plain_password,
         hashed_password
@@ -77,7 +77,6 @@ def create_access_token(data: dict):
 def verify_token(token: str):
 
     try:
-
         payload = jwt.decode(
             token,
             SECRET_KEY,
@@ -87,11 +86,9 @@ def verify_token(token: str):
         username = payload.get("sub")
 
         if username is None:
-
             return None
 
         return username
 
     except JWTError:
-
         return None
