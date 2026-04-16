@@ -3,174 +3,122 @@ import axios from "axios";
 import "./App.css";
 
 export default function App() {
+  const API = "https://fastapi-ml-project-gu9k.onrender.com";
 
-  // 🔐 Auth States
+  // 🔐 Auth
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
 
-  // 🤖 Prediction States
-  const [studyHours, setStudyHours] = useState("");
-  const [attendance, setAttendance] = useState("");
-  const [previousScore, setPreviousScore] = useState("");
+  // 🤖 Student Form (ALL DATASET FIELDS)
+  const [form, setForm] = useState({
+    age: "",
+    gender: "",
+    location: "",
+    family_size: "",
+    mother_education: "",
+    father_education: "",
+    mother_job: "",
+    father_job: "",
+    guardian: "",
+    parental_involvement: "",
+    internet_access: "",
+    studytime: "",
+    tutoring: "",
+    school_type: "",
+    attendance: "",
+    extra_curricular_activities: "",
+    english: "",
+    math: "",
+    science: "",
+    social_science: "",
+    art_culture: "",
+  });
+
   const [result, setResult] = useState("");
 
-  const API = "https://fastapi-ml-project-gu9k.onrender.com";
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   // 🔐 Register
   const register = async () => {
-    if (!username || !password) {
-      return alert("⚠️ Username & Password required");
-    }
-
-    try {
-      await axios.post(`${API}/register`, { username, password });
-      alert("✅ Registration Successful");
-    } catch {
-      alert("❌ Registration Failed");
-    }
+    await axios.post(`${API}/register`, { username, password });
+    alert("Registered ✅");
   };
 
   // 🔐 Login
   const login = async () => {
-    if (!username || !password) {
-      return alert("⚠️ Enter Username & Password");
-    }
-
-    try {
-      const res = await axios.post(
-        `${API}/login`,
-        new URLSearchParams({ username, password })
-      );
-
-      setToken(res.data.access_token);
-      alert("✅ Login Successful");
-    } catch {
-      alert("❌ Login Failed");
-    }
+    const res = await axios.post(
+      `${API}/login`,
+      new URLSearchParams({ username, password })
+    );
+    setToken(res.data.access_token);
+    alert("Login Success ✅");
   };
 
   // 🤖 Predict
   const predict = async () => {
+    const payload = {
+      ...form,
+      age: Number(form.age),
+      family_size: Number(form.family_size),
+      studytime: Number(form.studytime),
+      attendance: Number(form.attendance),
+      english: Number(form.english),
+      math: Number(form.math),
+      science: Number(form.science),
+      social_science: Number(form.social_science),
+      art_culture: Number(form.art_culture),
+    };
 
-    if (!token) {
-      return alert("⚠️ Please login first");
-    }
+    const res = await axios.post(`${API}/predict`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-    if (!studyHours || !attendance || !previousScore) {
-      return alert("⚠️ সব input fill করো");
-    }
-
-    try {
-      const res = await axios.post(
-        `${API}/predict`,
-        {
-          study_hours: Number(studyHours),
-          attendance: Number(attendance),
-          previous_score: Number(previousScore),
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      setResult(res.data.prediction);
-
-    } catch {
-      alert("❌ Prediction Failed");
-    }
+    setResult(res.data.predicted_group);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-100 p-6">
+      <h1 className="text-3xl font-bold text-center mb-6">
+        🎓 Student Group Prediction
+      </h1>
 
-      <div className="grid md:grid-cols-2 gap-6 w-full max-w-5xl p-6">
-
-        {/* 🔐 AUTH CARD */}
-        <div className="bg-white p-6 rounded-2xl shadow-lg">
-
-          <h2 className="text-xl font-bold mb-4 text-center">
-            🔐 Authentication
-          </h2>
-
-          <input
-            className="w-full p-2 border rounded mb-3"
-            placeholder="Username"
-            onChange={(e) => setUsername(e.target.value)}
-          />
-
-          <input
-            type="password"
-            className="w-full p-2 border rounded mb-3"
-            placeholder="Password"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <div className="flex gap-2">
-            <button
-              onClick={register}
-              className="flex-1 bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-            >
-              Register
-            </button>
-
-            <button
-              onClick={login}
-              className="flex-1 bg-green-500 text-white p-2 rounded hover:bg-green-600"
-            >
-              Login
-            </button>
-          </div>
-
-          <p className="text-xs mt-4 break-all text-gray-500">
-            Token: {token}
-          </p>
-        </div>
-
-        {/* 🤖 PREDICTION CARD */}
-        <div className="bg-white p-6 rounded-2xl shadow-lg">
-
-          <h2 className="text-xl font-bold mb-4 text-center">
-            🤖 Prediction
-          </h2>
-
-          <input
-            className="w-full p-2 border rounded mb-3"
-            placeholder="Study Hours"
-            onChange={(e) => setStudyHours(e.target.value)}
-          />
-
-          <input
-            className="w-full p-2 border rounded mb-3"
-            placeholder="Attendance (%)"
-            onChange={(e) => setAttendance(e.target.value)}
-          />
-
-          <input
-            className="w-full p-2 border rounded mb-3"
-            placeholder="Previous Score"
-            onChange={(e) => setPreviousScore(e.target.value)}
-          />
-
-          <button
-            onClick={predict}
-            className="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600"
-          >
-            Predict
-          </button>
-
-          <div className="mt-5 text-center">
-            <p className="text-lg font-semibold">Result:</p>
-            <p className="text-2xl font-bold text-green-600">
-              {result}
-            </p>
-          </div>
-
-        </div>
-
+      {/* AUTH */}
+      <div className="bg-white p-4 rounded shadow mb-6">
+        <h2 className="font-bold mb-2">Authentication</h2>
+        <input placeholder="Username" onChange={(e) => setUsername(e.target.value)} className="border p-2 mr-2"/>
+        <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} className="border p-2 mr-2"/>
+        <button onClick={register} className="bg-blue-500 text-white p-2 mr-2">Register</button>
+        <button onClick={login} className="bg-green-500 text-white p-2">Login</button>
       </div>
+
+      {/* FORM */}
+      <div className="grid grid-cols-2 gap-3 bg-white p-4 rounded shadow">
+        {Object.keys(form).map((key) => (
+          <input
+            key={key}
+            name={key}
+            placeholder={key.replaceAll("_", " ")}
+            onChange={handleChange}
+            className="border p-2"
+          />
+        ))}
+      </div>
+
+      <button
+        onClick={predict}
+        className="mt-4 w-full bg-purple-600 text-white p-3 rounded"
+      >
+        Predict Group
+      </button>
+
+      {result && (
+        <div className="mt-6 text-center text-2xl font-bold text-green-600">
+          Predicted Group: {result}
+        </div>
+      )}
     </div>
   );
 }
