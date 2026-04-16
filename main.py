@@ -4,20 +4,19 @@ from sqlalchemy.orm import Session
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
+import pandas as pd
+import joblib
+
 import database
 import models
 import schemas
 import auth
 
-import joblib
-
 # =============================
 # APP INIT
 # =============================
 
-app = FastAPI(
-    title="Student Exam Prediction API with JWT and Database"
-)
+app = FastAPI(title="Student Group Prediction API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,13 +33,13 @@ app.add_middleware(
 model = joblib.load("model/student_model.pkl")
 
 # =============================
-# CREATE TABLES (SAFE WAY)
+# CREATE TABLES
 # =============================
 
 @app.on_event("startup")
 def on_startup():
     models.Base.metadata.create_all(bind=database.engine)
-    print("✅ Tables created")
+    print("✅ Tables ready")
 
 # =============================
 # OAUTH
@@ -60,40 +59,36 @@ def get_db():
         db.close()
 
 # =============================
-# ROOT API
+# ROOT
 # =============================
 
 @app.get("/")
 def root():
     return RedirectResponse(url="/docs")
+
 # =============================
-# REGISTER API
+# REGISTER
 # =============================
 
 @app.post("/register")
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-
-    existing_user = db.query(models.User).filter(
+    existing = db.query(models.User).filter(
         models.User.username == user.username
     ).first()
 
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username already exists")
+    if existing:
+        raise HTTPException(status_code=400, detail="Username exists")
 
-    hashed_password = auth.hash_password(user.password)
-
-    new_user = models.User(
-        username=user.username,
-        password=hashed_password
-    )
+    hashed = auth.hash_password(user.password)
+    new_user = models.User(username=user.username, password=hashed)
 
     db.add(new_user)
     db.commit()
 
-    return {"message": "User registered successfully"}
+    return {"message": "User registered"}
 
 # =============================
-# LOGIN API
+# LOGIN
 # =============================
 
 @app.post("/login")
@@ -101,25 +96,16 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-
     user = db.query(models.User).filter(
         models.User.username == form_data.username
     ).first()
 
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid username")
+    if not user or not auth.verify_password(form_data.password, user.password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not auth.verify_password(form_data.password, user.password):
-        raise HTTPException(status_code=401, detail="Invalid password")
+    token = auth.create_access_token(data={"sub": user.username})
 
-    access_token = auth.create_access_token(
-        data={"sub": user.username}
-    )
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return {"access_token": token, "token_type": "bearer"}
 
 # =============================
 # VERIFY TOKEN
@@ -127,14 +113,12 @@ def login(
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     username = auth.verify_token(token)
-
     if username is None:
         raise HTTPException(status_code=401, detail="Invalid token")
-
     return username
 
 # =============================
-# PREDICT API (PROTECTED)
+# PREDICT (REAL DATASET)
 # =============================
 
 @app.post("/predict")
@@ -142,19 +126,14 @@ def predict(
     data: schemas.StudentInput,
     username: str = Depends(get_current_user)
 ):
+    # Convert input → DataFrame
+    input_dict = data.dict()
+    df = pd.DataFrame([input_dict])
 
-    prediction = model.predict([[
-        data.study_hours,
-        data.attendance,
-        data.previous_score
-    ]])
-
-    result = "Pass" if prediction[0] == 1 else "Fail"
+    # Model prediction
+    prediction = model.predict(df)[0]
 
     return {
         "username": username,
-        "prediction": result,
-        "study_hours": data.study_hours,
-        "attendance": data.attendance,
-        "previous_score": data.previous_score
+        "predicted_group": prediction
     }
