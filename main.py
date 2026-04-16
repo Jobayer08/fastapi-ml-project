@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from fastapi.responses import RedirectResponse
+
 
 import database
 import models
@@ -55,8 +57,7 @@ def get_db():
 
 @app.get("/")
 def root():
-    return {"message": "API running with JWT + Database"}
-
+    return RedirectResponse(url="/docs")
 # =============================
 # REGISTER API
 # =============================
