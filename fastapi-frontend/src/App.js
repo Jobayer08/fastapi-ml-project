@@ -1,3 +1,4 @@
+// App.js - Enhanced with better UX and design
 import React, { useState } from "react";
 import axios from "axios";
 import "./App.css";
@@ -9,8 +10,10 @@ export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState({ type: "", text: "" });
 
-  // ✅ FIX: initialize all fields
+  // Form state
   const [form, setForm] = useState({
     age: "",
     gender: "",
@@ -37,36 +40,76 @@ export default function App() {
 
   const [result, setResult] = useState("");
 
-  // ✅ FIX: proper state update
+  // Handle form changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
+  // Show temporary message
+  const showMessage = (type, text) => {
+    setAuthMessage({ type, text });
+    setTimeout(() => setAuthMessage({ type: "", text: "" }), 3000);
+  };
+
   // 🔐 Register
   const register = async () => {
-    await axios.post(`${API}/register`, { username, password });
-    alert("Registered ✅");
+    if (!username || !password) {
+      showMessage("error", "Please enter username and password");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await axios.post(`${API}/register`, { username, password });
+      showMessage("success", "✅ Registered successfully!");
+    } catch (err) {
+      showMessage("error", "❌ Registration failed. User may exist.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 🔐 Login
   const login = async () => {
-    const res = await axios.post(
-      `${API}/login`,
-      new URLSearchParams({ username, password })
-    );
-    setToken(res.data.access_token);
-    alert("Login Success ✅");
+    if (!username || !password) {
+      showMessage("error", "Please enter username and password");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const res = await axios.post(
+        `${API}/login`,
+        new URLSearchParams({ username, password })
+      );
+      setToken(res.data.access_token);
+      showMessage("success", "✅ Login successful!");
+    } catch (err) {
+      showMessage("error", "❌ Login failed. Check credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // 🤖 Predict
   const predict = async () => {
+    if (!token) {
+      showMessage("error", "Please login first!");
+      return;
+    }
+
+    // Validate required fields
+    const requiredFields = ["age", "studytime", "attendance", "english", "math", "science"];
+    const missing = requiredFields.filter(field => !form[field]);
+    if (missing.length > 0) {
+      showMessage("error", `Please fill: ${missing.join(", ")}`);
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      // ✅ convert numeric fields
       const payload = {
         ...form,
         age: Number(form.age),
@@ -85,137 +128,197 @@ export default function App() {
       });
 
       setResult(res.data.predicted_group);
+      showMessage("success", "✨ Prediction complete!");
+      
+      // Smooth scroll to result
+      setTimeout(() => {
+        document.getElementById("result-section")?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     } catch (err) {
-      alert("Prediction Failed ❌");
+      showMessage("error", "❌ Prediction failed. Try again.");
       console.log(err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // 🔥 Reusable Field Component
-  const Field = ({ label, name, type = "text", hint, options, min, max }) => (
-    <div className="flex flex-col">
-      <label className="font-semibold">{label}</label>
+  // Reset form
+  const resetForm = () => {
+    setForm({
+      age: "",
+      gender: "",
+      location: "",
+      family_size: "",
+      mother_education: "",
+      father_education: "",
+      mother_job: "",
+      father_job: "",
+      guardian: "",
+      parental_involvement: "",
+      internet_access: "",
+      studytime: "",
+      tutoring: "",
+      school_type: "",
+      attendance: "",
+      extra_curricular_activities: "",
+      english: "",
+      math: "",
+      science: "",
+      social_science: "",
+      art_culture: "",
+    });
+    setResult("");
+    showMessage("success", "Form cleared!");
+  };
 
-      {options ? (
-        <select
-          name={name}
-          value={form[name]}   // ✅ FIX
-          onChange={handleChange}
-          className="border p-2 rounded"
-        >
-          <option value="">Select...</option>
-          {options.map((op) => (
-            <option key={op} value={op}>
-              {op}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          name={name}
-          value={form[name]}   // ✅ FIX
-          min={min}
-          max={max}
-          placeholder={hint}
-          onChange={handleChange}
-          className="border p-2 rounded"
-        />
-      )}
+  // Reusable Field Component with icons
+  const Field = ({ label, name, type = "text", hint, options, min, max, icon }) => {
+    const getIcon = () => {
+      const icons = {
+        age: "🎂", gender: "👤", location: "📍", family_size: "👨‍👩‍👧", 
+        mother_education: "👩‍🎓", father_education: "👨‍🎓", studytime: "⏰", 
+        attendance: "📊", english: "📖", math: "📐", science: "🔬"
+      };
+      return icon || icons[name] || "📝";
+    };
 
-      <small className="text-gray-500">{hint}</small>
-    </div>
-  );
+    return (
+      <div className="field-group">
+        <label className="field-label">
+          <span>{getIcon()}</span> {label}
+        </label>
+        {options ? (
+          <select
+            name={name}
+            value={form[name]}
+            onChange={handleChange}
+            className="field-input"
+          >
+            <option value="">Select {label}...</option>
+            {options.map((op) => (
+              <option key={op} value={op}>
+                {op}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type={type}
+            name={name}
+            value={form[name]}
+            min={min}
+            max={max}
+            placeholder={hint || `Enter ${label.toLowerCase()}`}
+            onChange={handleChange}
+            className="field-input"
+          />
+        )}
+        {hint && <small className="field-hint">{hint}</small>}
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold text-center mb-6">
-        🎓 Student Group Prediction
-      </h1>
+    <div className="app-container">
+      <div className="header">
+        <h1>🎓 Student Success Predictor</h1>
+        <p className="header-subtitle">AI-powered academic group classification</p>
+      </div>
 
-      {/* AUTH */}
-      <div className="bg-white p-4 rounded shadow mb-6">
-        <h2 className="font-bold mb-2">Authentication</h2>
+      {/* Auth Section */}
+      <div className="auth-card">
+        <div className="auth-title">Authentication</div>
+        <div className="auth-input-group">
+          <input
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="auth-input"
+            onKeyPress={(e) => e.key === "Enter" && login()}
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="auth-input"
+            onKeyPress={(e) => e.key === "Enter" && login()}
+          />
+          <button onClick={register} className="btn btn-primary" disabled={isLoading}>
+            {isLoading ? "..." : "Register"}
+          </button>
+          <button onClick={login} className="btn btn-secondary" disabled={isLoading}>
+            {isLoading ? "..." : "Login"}
+          </button>
+        </div>
+        {authMessage.text && (
+          <div className={`auth-message ${authMessage.type}`} style={{
+            marginTop: "1rem",
+            padding: "0.5rem",
+            borderRadius: "8px",
+            background: authMessage.type === "success" ? "#c6f6d5" : "#fed7d7",
+            color: authMessage.type === "success" ? "#22543d" : "#742a2a",
+            textAlign: "center"
+          }}>
+            {authMessage.text}
+          </div>
+        )}
+        {token && (
+          <div style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "#48bb78" }}>
+            ✓ Authenticated
+          </div>
+        )}
+      </div>
 
-        <input
-          placeholder="Username"
-          onChange={(e) => setUsername(e.target.value)}
-          className="border p-2 mr-2"
-        />
+      {/* Main Form */}
+      <div className="form-container">
+        <div className="form-grid">
+          <Field label="Age" name="age" type="number" min="10" max="25" hint="10-25 years" />
+          <Field label="Gender" name="gender" options={["Male", "Female"]} />
+          <Field label="Location" name="location" options={["Urban", "Rural", "City"]} />
+          <Field label="Family Size" name="family_size" type="number" min="1" max="10" hint="1-10 members" />
+          <Field label="Mother Education" name="mother_education" options={["SSC", "HSC", "Diploma", "Honors", "Masters"]} />
+          <Field label="Father Education" name="father_education" options={["SSC", "HSC", "Diploma", "Honors", "Masters"]} />
+          <Field label="Mother Job" name="mother_job" options={["Yes", "No"]} />
+          <Field label="Father Job" name="father_job" options={["Yes", "No"]} />
+          <Field label="Guardian" name="guardian" options={["Father", "Mother"]} />
+          <Field label="Parental Involvement" name="parental_involvement" options={["Yes", "No"]} />
+          <Field label="Internet Access" name="internet_access" options={["Yes", "No"]} />
+          <Field label="Study Time" name="studytime" type="number" min="1" max="12" hint="Hours per week" />
+          <Field label="Tutoring" name="tutoring" options={["Yes", "No"]} />
+          <Field label="School Type" name="school_type" options={["Govt", "Private", "Semi_Govt"]} />
+          <Field label="Attendance" name="attendance" type="number" min="0" max="100" hint="Percentage" />
+          <Field label="Extra Curricular" name="extra_curricular_activities" options={["Yes", "No"]} />
+          <Field label="English Score" name="english" type="number" min="0" max="100" hint="0-100" />
+          <Field label="Math Score" name="math" type="number" min="0" max="100" hint="0-100" />
+          <Field label="Science Score" name="science" type="number" min="0" max="100" hint="0-100" />
+          <Field label="Social Science Score" name="social_science" type="number" min="0" max="100" hint="0-100" />
+          <Field label="Art & Culture Score" name="art_culture" type="number" min="0" max="100" hint="0-100" />
+        </div>
+      </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 mr-2"
-        />
-
-        <button onClick={register} className="bg-blue-500 text-white p-2 mr-2">
-          Register
+      {/* Action Buttons */}
+      <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem" }}>
+        <button onClick={predict} className="predict-btn" disabled={isLoading}>
+          {isLoading ? "Processing..." : "🎯 Predict Student Group"}
         </button>
-
-        <button onClick={login} className="bg-green-500 text-white p-2">
-          Login
+        <button onClick={resetForm} className="btn" style={{
+          background: "#e2e8f0",
+          color: "#4a5568",
+          padding: "1rem 1.5rem"
+        }}>
+          ↺ Reset
         </button>
       </div>
 
-      {/* FORM */}
-      <div className="grid md:grid-cols-3 gap-4 bg-white p-6 rounded shadow">
-
-        <Field label="Age" name="age" type="number" min="10" max="25" hint="10-25" />
-
-        <Field label="Gender" name="gender" options={["Male", "Female"]} />
-
-        <Field label="Location" name="location" options={["Urban", "Rural", "City"]} />
-
-        <Field label="Family Size" name="family_size" type="number" min="1" max="10" hint="1-10" />
-
-        <Field label="Mother Education" name="mother_education" options={["SSC", "HSC", "Diploma", "Honors", "Masters"]} />
-
-        <Field label="Father Education" name="father_education" options={["SSC", "HSC", "Diploma", "Honors", "Masters"]} />
-
-        <Field label="Mother Job" name="mother_job" options={["Yes", "No"]} />
-
-        <Field label="Father Job" name="father_job" options={["Yes", "No"]} />
-
-        <Field label="Guardian" name="guardian" options={["Father", "Mother"]} />
-
-        <Field label="Parental Involvement" name="parental_involvement" options={["Yes", "No"]} />
-
-        <Field label="Internet Access" name="internet_access" options={["Yes", "No"]} />
-
-        <Field label="Study Time" name="studytime" type="number" min="1" max="12" hint="1-12 hours" />
-
-        <Field label="Tutoring" name="tutoring" options={["Yes", "No"]} />
-
-        <Field label="School Type" name="school_type" options={["Govt", "Private", "Semi_Govt"]} />
-
-        <Field label="Attendance" name="attendance" type="number" min="0" max="100" hint="0-100%" />
-
-        <Field label="Extra Curricular" name="extra_curricular_activities" options={["Yes", "No"]} />
-
-        <Field label="English" name="english" type="number" min="0" max="100" />
-
-        <Field label="Math" name="math" type="number" min="0" max="100" />
-
-        <Field label="Science" name="science" type="number" min="0" max="100" />
-
-        <Field label="Social Science" name="social_science" type="number" min="0" max="100" />
-
-        <Field label="Art & Culture" name="art_culture" type="number" min="0" max="100" />
-
-      </div>
-
-      <button
-        onClick={predict}
-        className="mt-6 w-full bg-purple-600 text-white p-3 rounded text-lg"
-      >
-        Predict Group
-      </button>
-
+      {/* Result Section */}
       {result && (
-        <div className="mt-6 text-center text-2xl font-bold text-green-600">
-          Predicted Group: {result}
+        <div id="result-section" className="result-card">
+          <div className="result-label">🎉 PREDICTED GROUP</div>
+          <div className="result-value">{result}</div>
+          <p style={{ color: "rgba(255,255,255,0.8)", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+            Based on academic performance and personal factors
+          </p>
         </div>
       )}
     </div>
