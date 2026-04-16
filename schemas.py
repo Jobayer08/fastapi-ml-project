@@ -38,4 +38,4 @@ class StudentInput(BaseModel):
 # =========================
 
 class PredictionOutput(BaseModel):
-    predicted_score: float
+    prediction: str
