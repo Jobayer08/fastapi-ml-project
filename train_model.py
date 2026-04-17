@@ -8,17 +8,16 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 
-# =========================
 # Load Dataset
-# =========================
+
 df = pd.read_csv("data/bd_students_per_v2.csv")
 
 # Drop useless columns
 df = df.drop(columns=["id", "full_name"])
 
-# =========================
+
 # Split Features & Target
-# =========================
+
 X = df.drop("stu_group", axis=1)
 y = df["stu_group"]
 
@@ -26,9 +25,9 @@ y = df["stu_group"]
 categorical_cols = X.select_dtypes(include=["object"]).columns
 numeric_cols = X.select_dtypes(exclude=["object"]).columns
 
-# =========================
+
 # Preprocessing
-# =========================
+
 numeric_transformer = Pipeline([
     ("imputer", SimpleImputer(strategy="mean"))
 ])
@@ -43,7 +42,7 @@ preprocessor = ColumnTransformer([
     ("cat", categorical_transformer, categorical_cols)
 ])
 
-# =========================
+
 # Pipeline
 # =========================
 pipeline = Pipeline([
